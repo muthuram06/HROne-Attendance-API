@@ -1,27 +1,95 @@
-
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, status
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import BaseModel, Field
 from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
-load_dotenv()
+
+# -------------------- CONFIGURATION --------------------
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+
+load_dotenv(BASE_DIR / ".env")
 
 MONGO_URI = os.getenv("MONGO_URI", "").strip()
 MONGO_DB = os.getenv("MONGO_DB", "attendance_db").strip()
 
 IST = ZoneInfo("Asia/Kolkata")
 
+
+# -------------------- APPLICATION --------------------
+
 app = FastAPI(
-    title="Employee Attendance API",
+    title="HROne Attendance API",
     description="Manage employees and their attendance records.",
     version="1.1.0",
+    docs_url=None,
+    redoc_url=None,
 )
+
+# Serve CSS, JavaScript and other frontend files.
+app.mount(
+    "/static",
+    StaticFiles(directory=str(STATIC_DIR)),
+    name="static",
+)
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return {
+        "message": "HROne Attendance API is running",
+        "dashboard": "/dashboard",
+        "docs": "/docs",
+    }
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard():
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+
+@app.get("/docs", include_in_schema=False)
+def custom_swagger_ui():
+    response = get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="HROne Attendance API | API Documentation",
+        swagger_ui_parameters={
+            "docExpansion": "list",
+            "defaultModelsExpandDepth": -1,
+            "displayRequestDuration": True,
+            "filter": True,
+            "persistAuthorization": True,
+        },
+    )
+
+    html = response.body.decode("utf-8")
+
+    # Keep Swagger's default CSS and add our custom stylesheet.
+    html = html.replace(
+        "</head>",
+        '<link rel="stylesheet" href="/static/swagger.css">\n</head>',
+    )
+
+    return HTMLResponse(content=html)
+
+
+
+# -------------------- DATABASE STATE --------------------
 
 client = None
 db = None
@@ -40,8 +108,12 @@ class EmployeeCreate(BaseModel):
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     email: Optional[str] = Field(default=None, min_length=3, max_length=254)
-    department: Optional[str] = Field(default=None, min_length=1, max_length=100)
-    designation: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    department: Optional[str] = Field(
+        default=None, min_length=1, max_length=100
+    )
+    designation: Optional[str] = Field(
+        default=None, min_length=1, max_length=100
+    )
 
 
 class AttendanceCheckIn(BaseModel):
@@ -75,7 +147,6 @@ def get_database():
 
         db = client[MONGO_DB]
 
-        # Prevent duplicate employees.
         db["employees"].create_index(
             [("employee_id", 1)],
             unique=True,
@@ -84,8 +155,6 @@ def get_database():
             [("email", 1)],
             unique=True,
         )
-
-        # One attendance record per employee per day.
         db["attendance"].create_index(
             [("employee_id", 1), ("attendance_date", 1)],
             unique=True,
@@ -102,7 +171,9 @@ def get_database():
 
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="MongoDB is unavailable. Check your database configuration.",
+            detail=(
+                "MongoDB is unavailable. Check your database configuration."
+            ),
         )
 
 
@@ -128,15 +199,7 @@ def get_employee_or_404(database, employee_id):
     return employee
 
 
-# -------------------- BASIC ROUTES --------------------
-
-@app.get("/")
-def root():
-    return {
-        "message": "Employee Attendance API is running",
-        "docs": "/docs",
-    }
-
+# -------------------- HEALTH CHECK --------------------
 
 @app.get("/health")
 def health_check():
@@ -157,15 +220,28 @@ def create_employee(employee: EmployeeCreate):
     collection = database["employees"]
 
     document = employee.model_dump()
-    document["employee_id"] = document["employee_id"].strip()
-    document["email"] = document["email"].strip().lower()
-    document["name"] = document["name"].strip()
-    document["department"] = document["department"].strip()
-    document["designation"] = document["designation"].strip()
 
-    if not all(document[key] for key in (
-        "employee_id", "email", "name", "department", "designation"
-    )):
+    for field in (
+        "employee_id",
+        "email",
+        "name",
+        "department",
+        "designation",
+    ):
+        document[field] = document[field].strip()
+
+    document["email"] = document["email"].lower()
+
+    if not all(
+        document[field]
+        for field in (
+            "employee_id",
+            "email",
+            "name",
+            "department",
+            "designation",
+        )
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Employee fields cannot be blank",
@@ -188,7 +264,6 @@ def create_employee(employee: EmployeeCreate):
 @app.get("/employees")
 def list_employees():
     database = get_database()
-
     employees = database["employees"].find().sort("name", 1)
 
     return [
@@ -211,7 +286,6 @@ def update_employee(employee_id: str, updates: EmployeeUpdate):
     collection = database["employees"]
 
     existing = get_employee_or_404(database, employee_id)
-
     changes = updates.model_dump(exclude_unset=True)
 
     if not changes:
@@ -220,17 +294,7 @@ def update_employee(employee_id: str, updates: EmployeeUpdate):
             detail="Provide at least one field to update",
         )
 
-    allowed_fields = (
-        "name",
-        "email",
-        "department",
-        "designation",
-    )
-
     for field, value in changes.items():
-        if field not in allowed_fields:
-            continue
-
         if value is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -260,7 +324,6 @@ def update_employee(employee_id: str, updates: EmployeeUpdate):
         )
 
     updated = collection.find_one({"_id": existing["_id"]})
-
     return serialize_document(updated)
 
 
@@ -289,7 +352,6 @@ def delete_employee(employee_id: str):
 )
 def check_in(request: AttendanceCheckIn):
     database = get_database()
-
     employee_id = request.employee_id.strip()
 
     get_employee_or_404(database, employee_id)
@@ -317,7 +379,6 @@ def check_in(request: AttendanceCheckIn):
         )
 
     record["_id"] = result.inserted_id
-
     return serialize_document(record)
 
 
@@ -326,7 +387,6 @@ def check_in(request: AttendanceCheckIn):
 @app.post("/attendance/check-out")
 def check_out(request: AttendanceCheckOut):
     database = get_database()
-
     employee_id = request.employee_id.strip()
 
     get_employee_or_404(database, employee_id)
@@ -334,10 +394,12 @@ def check_out(request: AttendanceCheckOut):
     collection = database["attendance"]
     today = datetime.now(IST).date().isoformat()
 
-    record = collection.find_one({
-        "employee_id": employee_id,
-        "attendance_date": today,
-    })
+    record = collection.find_one(
+        {
+            "employee_id": employee_id,
+            "attendance_date": today,
+        }
+    )
 
     if record is None:
         raise HTTPException(
@@ -354,7 +416,7 @@ def check_out(request: AttendanceCheckOut):
     now = datetime.now(timezone.utc)
     check_in_time = record["check_in"]
 
-    # MongoDB commonly returns naive UTC datetimes with default PyMongo settings.
+    # PyMongo may return naive UTC datetimes by default.
     if check_in_time.tzinfo is None:
         check_in_time = check_in_time.replace(tzinfo=timezone.utc)
 
@@ -368,7 +430,7 @@ def check_out(request: AttendanceCheckOut):
 
     working_hours = round(elapsed_seconds / 3600, 2)
 
-    # Atomic condition prevents two concurrent check-outs.
+    # Atomic update prevents concurrent duplicate check-outs.
     updated = collection.find_one_and_update(
         {
             "_id": record["_id"],
@@ -397,7 +459,6 @@ def check_out(request: AttendanceCheckOut):
 @app.get("/attendance/{employee_id}")
 def get_attendance(employee_id: str):
     database = get_database()
-
     get_employee_or_404(database, employee_id)
 
     records = database["attendance"].find(
@@ -415,13 +476,12 @@ def get_attendance(employee_id: str):
 @app.get("/attendance/summary/{employee_id}")
 def attendance_summary(employee_id: str):
     database = get_database()
-
     get_employee_or_404(database, employee_id)
 
     records = list(
-        database["attendance"].find({
-            "employee_id": employee_id,
-        })
+        database["attendance"].find(
+            {"employee_id": employee_id}
+        )
     )
 
     completed = [
