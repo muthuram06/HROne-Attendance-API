@@ -1,0 +1,311 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#203653">
+  <title>HROne | Attendance Management</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+  <script src="/static/dashboard.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/dashboard" data-view="overview">
+      <span class="brand-mark">H</span>
+      <span>HROne<small>People operations</small></span>
+    </a>
+
+    <div class="nav-label">WORKSPACE</div>
+
+    <a class="nav-link active" href="#overview" data-view="overview">
+      <span>▦</span>Overview
+    </a>
+    <a class="nav-link" href="#employees" data-view="employees">
+      <span>♙</span>Employees
+    </a>
+    <a class="nav-link" href="#attendance" data-view="attendance">
+      <span>◷</span>Attendance
+    </a>
+
+    <div class="sidebar-bottom">
+      <span class="connection-dot"></span>
+      <div>
+        API connection
+        <small id="connection-status">Checking...</small>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow" id="page-eyebrow">WORKSPACE / OVERVIEW</div>
+        <h1 id="page-title">Attendance overview</h1>
+        <p class="muted" id="page-description">
+          Manage your team and daily attendance.
+        </p>
+      </div>
+
+      <div class="top-actions">
+        <a class="docs-link" href="/docs" target="_blank"
+           rel="noopener noreferrer">API documentation ↗</a>
+        <button class="button secondary" id="refresh-btn" type="button">
+          ↻ Refresh
+        </button>
+      </div>
+    </header>
+
+    <!-- OVERVIEW PAGE -->
+    <section class="page-view" id="overview-view">
+      <section class="welcome">
+        <div>
+          <div class="welcome-label">TEAM MANAGEMENT</div>
+          <h2>A clear view of your workday.</h2>
+          <p>
+            Review attendance, manage employees, and keep daily records
+            up to date.
+          </p>
+        </div>
+
+        <div class="date-panel">
+          <span>TODAY</span>
+          <strong id="today-date">Loading date...</strong>
+          <small>India Standard Time · IST</small>
+        </div>
+      </section>
+
+      <section class="stats">
+        <article class="stat-card">
+          <div class="stat-top">
+            <span>Total employees</span>
+            <span class="stat-icon">♙</span>
+          </div>
+          <strong id="total-employees">—</strong>
+          <small>Registered in the system</small>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-top">
+            <span>Checked in</span>
+            <span class="stat-icon blue">↘</span>
+          </div>
+          <strong id="checked-in">—</strong>
+          <small>Attendance marked today</small>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-top">
+            <span>Pending check-out</span>
+            <span class="stat-icon amber">◷</span>
+          </div>
+          <strong id="pending-checkout">—</strong>
+          <small>Workday still in progress</small>
+        </article>
+
+        <article class="stat-card">
+          <div class="stat-top">
+            <span>Completed</span>
+            <span class="stat-icon green">✓</span>
+          </div>
+          <strong id="completed">—</strong>
+          <small>Check-in and check-out recorded</small>
+        </article>
+      </section>
+
+      <section class="overview-bottom">
+        <article class="panel overview-card">
+          <div class="panel-heading">
+            <div>
+              <h2>Today's attendance</h2>
+              <p>Quick view of your team's current status.</p>
+            </div>
+            <button class="text-button" type="button" data-view="attendance">
+              View register →
+            </button>
+          </div>
+
+          <div class="overview-attendance-list" id="overview-attendance">
+            <div class="empty">Loading today's attendance...</div>
+          </div>
+        </article>
+
+        <article class="panel overview-card">
+          <div class="panel-heading">
+            <div>
+              <h2>Employee management</h2>
+              <p>Manage your registered team members.</p>
+            </div>
+          </div>
+
+          <div class="quick-action">
+            <div class="quick-action-icon">♙</div>
+            <div>
+              <strong id="overview-employee-count">0 employees</strong>
+              <p>View employee profiles and manage attendance.</p>
+            </div>
+          </div>
+
+          <button class="button primary full-width" type="button"
+                  data-view="employees">
+            Open employee directory →
+          </button>
+        </article>
+      </section>
+    </section>
+
+    <!-- EMPLOYEES PAGE -->
+    <section class="page-view" id="employees-view" hidden>
+      <section class="content-grid">
+        <article class="panel employee-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Employee directory</h2>
+              <p>Search employees and manage their daily attendance.</p>
+            </div>
+            <span class="count-pill" id="employee-count">0 employees</span>
+          </div>
+
+          <div class="table-toolbar">
+            <input id="search-input" type="search"
+                   placeholder="Search name, ID or department..."
+                   aria-label="Search employees">
+            <button class="button secondary" id="new-employee-btn"
+                    type="button">+ Add employee</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>EMPLOYEE</th>
+                  <th>DEPARTMENT</th>
+                  <th>CHECK-IN</th>
+                  <th>STATUS</th>
+                  <th>ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="employee-table">
+                <tr>
+                  <td colspan="5" class="empty">Loading employees...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="table-footer" id="table-footer">Loading records...</div>
+        </article>
+
+        <aside class="panel add-panel" id="add-panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Add employee</h2>
+              <p>Create an employee record.</p>
+            </div>
+            <span class="form-icon">＋</span>
+          </div>
+
+          <form id="employee-form">
+            <label for="employee_id">Employee ID</label>
+            <input id="employee_id" name="employee_id"
+                   placeholder="e.g. EMP002" required maxlength="30">
+
+            <label for="name">Full name</label>
+            <input id="name" name="name"
+                   placeholder="Employee name" required maxlength="100">
+
+            <label for="email">Work email</label>
+            <input id="email" name="email" type="email"
+                   placeholder="name@company.com" required maxlength="254">
+
+            <label for="department">Department</label>
+            <input id="department" name="department"
+                   placeholder="e.g. Engineering" required maxlength="100">
+
+            <label for="designation">Designation</label>
+            <input id="designation" name="designation"
+                   placeholder="e.g. Software Engineer" required maxlength="100">
+
+            <button class="button primary full-width" id="create-btn"
+                    type="submit">Create employee</button>
+
+            <p class="form-message" id="form-message" role="status"></p>
+          </form>
+        </aside>
+      </section>
+    </section>
+
+    <!-- ATTENDANCE REGISTER PAGE -->
+    <section class="page-view" id="attendance-view" hidden>
+      <section class="attendance-summary">
+        <article class="mini-stat">
+          <span>Attendance records</span>
+          <strong id="attendance-total">0</strong>
+        </article>
+        <article class="mini-stat">
+          <span>In progress</span>
+          <strong id="attendance-in-progress">0</strong>
+        </article>
+        <article class="mini-stat">
+          <span>Completed</span>
+          <strong id="attendance-completed">0</strong>
+        </article>
+      </section>
+
+      <article class="panel attendance-panel">
+        <div class="panel-heading attendance-heading">
+          <div>
+            <h2>Attendance register</h2>
+            <p>Review recorded check-ins, check-outs and working hours.</p>
+          </div>
+          <button class="button secondary" id="attendance-refresh"
+                  type="button">↻ Refresh records</button>
+        </div>
+
+        <div class="attendance-filters">
+          <input id="attendance-search" type="search"
+                 placeholder="Search employee name or ID..."
+                 aria-label="Search attendance records">
+
+          <input id="attendance-date" type="date"
+                 aria-label="Filter by attendance date">
+
+          <button class="button secondary" id="clear-attendance-filters"
+                  type="button">Clear filters</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="attendance-table">
+            <thead>
+              <tr>
+                <th>EMPLOYEE</th>
+                <th>DATE</th>
+                <th>CHECK-IN</th>
+                <th>CHECK-OUT</th>
+                <th>WORKING HOURS</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="attendance-table">
+              <tr>
+                <td colspan="6" class="empty">Loading attendance records...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-footer" id="attendance-footer">
+          Loading attendance records...
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      <span>HROne Attendance Management</span>
+      <span>FastAPI · MongoDB</span>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
