@@ -1,8 +1,8 @@
+
 fastapi
 uvicorn[standard]
 pymongo[srv]
 python-dotenv
+tzdata
 pytest
 httpx
-MONGO_URI=your_rotated_mongodb_connection_string
-MONGO_DB=attendance_db
