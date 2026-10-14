@@ -1,201 +1,183 @@
 # HROne Attendance API
 
-**A RESTful employee attendance management system built with FastAPI and MongoDB.**
-
-Manage employee records, track daily check-ins and check-outs, view attendance history, and calculate working hours through a documented REST API.
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/MongoDB-Database-47A248?style=flat-square&logo=mongodb&logoColor=white" alt="MongoDB">
-  <img src="https://img.shields.io/badge/Tests-Pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white" alt="Pytest">
-</p>
-
----
-
-## Overview
-
-HROne Attendance API provides backend services for employee management and daily attendance tracking. It uses MongoDB for data persistence and FastAPI for request validation, API handling, and interactive documentation.
+A REST API for employee management, attendance tracking, manual attendance corrections, and attendance analytics. Built using **Python, FastAPI, and MongoDB**.
 
 ## Features
 
-| Feature | Description |
+- Employee management and employee listing
+- Attendance punch-in and punch-out
+- Attendance history with pagination and filters
+- Manual attendance corrections with an audit trail
+- Attendance calculations, including working hours, late minutes, overtime, and half-day status
+- Monthly employee attendance analytics
+- Department attendance summaries
+- Late-arrival leaderboard
+- MongoDB-backed data storage and indexing
+- Interactive API documentation through Swagger UI
+- Automated API tests using pytest
+
+## Technology Stack
+
+| Technology | Purpose |
 |---|---|
-| Employee management | Create, retrieve, update, and delete employee records |
-| Check-in / Check-out | Record employee attendance times |
-| Duplicate prevention | Prevent multiple daily check-in records |
-| Attendance history | Retrieve attendance records by employee |
-| Attendance summary | View completed days, pending check-outs, and working hours |
-| Database health | Verify API and MongoDB connectivity |
-| Timezone handling | IST attendance dates and UTC timestamps |
-| API documentation | Explore and test endpoints with Swagger UI |
-
-## Tech Stack
-
-- **Language:** Python 3.11+
-- **Framework:** FastAPI
-- **Database:** MongoDB Atlas
-- **Database driver:** PyMongo
-- **Validation:** Pydantic
-- **Testing:** Pytest, HTTPX
-- **Configuration:** python-dotenv
+| Python 3.11+ | Backend language |
+| FastAPI | REST API framework |
+| MongoDB | Database |
+| PyMongo | MongoDB integration |
+| Pydantic | Request validation |
+| Uvicorn | ASGI server |
+| Pytest | Automated testing |
 
 ## Project Structure
 
 ```text
 HROne-Attendance-API/
 ├── app/
-│   └── main.py
+│   ├── main.py
+│   └── __pycache__/
+├── static/
+│   ├── index.html
+│   ├── dashboard.css
+│   ├── dashboard.js
+│   └── swagger.css
 ├── tests/
 │   └── test_api.py
-├── .env                 # Local secrets; not committed
+├── .env.example
 ├── .gitignore
-├── requirements.txt
-└── README.md
+├── README.md
+├── REVIEW.md
+├── DECISIONS.md
+└── requirements.txt
 ```
 
-## Getting Started
+The `.venv/` directory and actual `.env` file should remain local and must not be committed to GitHub.
 
-### Prerequisites
+## Prerequisites
 
-- Python 3.11 or newer
-- A MongoDB Atlas account or accessible MongoDB instance
+- Python 3.11 or later
+- MongoDB 6.0+ or MongoDB Atlas
 - Git
 
-### 1. Clone the repository
+## Installation
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/muthuram06/HROne-Attendance-API.git
 cd HROne-Attendance-API
 ```
 
-### 2. Create a virtual environment
+Create and activate a virtual environment on Windows PowerShell:
 
-```bash
+```powershell
 python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
-Activate it on Windows:
+Install dependencies:
 
 ```bash
-.venv\Scripts\activate
+python -m pip install -r requirements.txt
 ```
 
-### 3. Install dependencies
+## Environment Configuration
 
-```bash
-pip install -r requirements.txt
-```
+Create a `.env` file in the project root and configure your MongoDB connection string and database name according to the environment variables read by `app/main.py`.
 
-### 4. Configure environment variables
-
-Create a `.env` file in the project root:
+Example:
 
 ```env
-MONGO_URI=your_mongodb_connection_string
-MONGO_DB=attendance_db
+MONGODB_URI=your_mongodb_connection_string
+DATABASE_NAME=hrone_attendance
 ```
 
-Replace the placeholder with your actual connection string. Keep `.env` private and never commit database credentials.
+Use the exact environment variable names expected by your application. Never commit your actual `.env` file, MongoDB credentials, or passwords to a public repository.
 
-### 5. Run the API
+## Running the Application
+
+Start the development server:
 
 ```bash
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open the following URLs:
+The API will be available at:
 
-| Resource | URL |
+- API root: http://127.0.0.1:8000/
+- Health check: http://127.0.0.1:8000/health
+- Swagger UI: http://127.0.0.1:8000/docs
+- ReDoc: http://127.0.0.1:8000/redoc
+- Dashboard: http://127.0.0.1:8000/dashboard
+
+Keep the terminal running while using these local URLs.
+
+## API Endpoints
+
+The implemented endpoint names and required parameters are defined by the running application's OpenAPI documentation at `/docs`.
+
+The main API areas include:
+
+| Area | Purpose |
 |---|---|
-| API root | http://127.0.0.1:8000/ |
-| Health check | http://127.0.0.1:8000/health |
-| Swagger UI | http://127.0.0.1:8000/docs |
-| ReDoc | http://127.0.0.1:8000/redoc |
+| Employees | Create, list, retrieve, update, and delete employee records |
+| Attendance | Punch-in, punch-out, and retrieve attendance records |
+| Corrections | Update attendance records while preserving correction history |
+| Employee analytics | Monthly attendance metrics for an employee |
+| Department analytics | Attendance summaries by department |
+| Late-arrival analytics | Rank employees by late arrivals |
+| API documentation | Explore request schemas and responses through Swagger UI |
 
-## API Reference
+Use `/docs` to verify the exact routes, request bodies, query parameters, and response codes implemented in the current version.
 
-All endpoints are available through Swagger UI at `/docs`.
+## Attendance Business Rules
 
-### Employee Endpoints
+The API is designed to validate attendance requests and calculate derived attendance information consistently.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `POST` | `/employees` | Create an employee |
-| `GET` | `/employees` | List employees |
-| `GET` | `/employees/{employee_id}` | Retrieve an employee |
-| `PUT` | `/employees/{employee_id}` | Update an employee |
-| `DELETE` | `/employees/{employee_id}` | Delete an employee |
+- Attendance dates and time calculations use the configured timezone rules.
+- Duplicate attendance actions should be rejected.
+- Punch-out times must be valid relative to punch-in times.
+- Working hours, lateness, overtime, and half-day status are derived from attendance timestamps and applicable shift rules.
+- Manual corrections should include a reason, editor information, and an audit history.
+- Analytics should handle missing attendance data and employees with no attendance records.
 
-### Attendance Endpoints
+Refer to `DECISIONS.md` and `REVIEW.md` for the design rationale and review considerations.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `POST` | `/attendance/check-in` | Record daily check-in |
-| `POST` | `/attendance/check-out` | Record check-out and calculate working hours |
-| `GET` | `/attendance/{employee_id}` | Retrieve attendance history |
-| `GET` | `/attendance/summary/{employee_id}` | Retrieve attendance summary |
+## Running Tests
 
-### Example: Check In
-
-**Request**
-
-```http
-POST /attendance/check-in
-Content-Type: application/json
-```
-
-```json
-{
-  "employee_id": "EMP001"
-}
-```
-
-The response depends on whether the employee exists and has already checked in for the current attendance date. Duplicate check-ins are rejected.
-
-## Testing
-
-Run the test suite:
+Run the test suite from the project root:
 
 ```bash
 python -m pytest -q
 ```
 
-The current basic test suite checks the root endpoint and database health endpoint.
+Tests should cover successful API requests, invalid inputs, duplicate attendance, punch-out validation, correction history, and analytics edge cases.
 
 ## Deployment
 
-The API can be deployed as a Python web service on a compatible hosting platform.
+The application can be deployed to a Python-compatible hosting provider such as Render.
 
-For Render, use:
+Configure the required MongoDB environment variables in the hosting provider's environment settings. Do not upload local secrets.
 
-**Build command**
-
-```bash
-pip install -r requirements.txt
-```
-
-**Start command**
+Example production start command:
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Configure `MONGO_URI` and `MONGO_DB` in the hosting provider's environment settings. Verify database connectivity and the `/health` endpoint after deployment.
+Confirm that the selected hosting platform supports the configured start command and port handling.
 
-## Security Notes
+## Design Documentation
 
-- Store credentials in environment variables.
-- Never commit `.env` or expose database passwords.
-- Restrict MongoDB network access appropriately.
-- Add authentication and authorization before using the API for real employee data.
+- [`REVIEW.md`](REVIEW.md) — code review findings, validation, data integrity, audit history, and testing.
+- [`DECISIONS.md`](DECISIONS.md) — framework, database, timezone, analytics, and security decisions.
 
-## Repository
+## Security
 
-**GitHub:** [muthuram06/HROne-Attendance-API](https://github.com/muthuram06/HROne-Attendance-API)
+- Keep database credentials in environment variables.
+- Exclude `.env` and `.venv/` from version control.
+- Validate all externally supplied input.
+- Use appropriate error responses without exposing secrets or internal database details.
 
----
+## License
 
-<p align="center">
-  Built with Python, FastAPI, and MongoDB.
-</p>
+This project was developed as an employee attendance API assignment. Add a license if you intend to distribute it under specific reuse terms.
