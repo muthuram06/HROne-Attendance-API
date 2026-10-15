@@ -1,20 +1,30 @@
 # HROne Attendance API
 
-A REST API for employee management, attendance tracking, manual attendance corrections, and attendance analytics. Built using **Python, FastAPI, and MongoDB**.
+A REST API for employee management, attendance tracking, attendance regularization, and attendance analytics. Built with Python, FastAPI, and MongoDB.
+
+## Live Deployment
+
+- **Live API:** https://hrone-attendance-api-5evn.onrender.com
+- **Swagger UI:** https://hrone-attendance-api-5evn.onrender.com/docs
+- **Health Check:** https://hrone-attendance-api-5evn.onrender.com/health
+
+The API is deployed on Render and uses MongoDB for persistent storage. Swagger UI allows reviewers to explore endpoints, submit requests, and inspect responses.
 
 ## Features
 
-- Employee management and employee listing
-- Attendance punch-in and punch-out
-- Attendance history with pagination and filters
+- Create and list employees
+- Employee attendance punch-in and punch-out
+- Attendance listing with filtering and pagination
 - Manual attendance corrections with an audit trail
-- Attendance calculations, including working hours, late minutes, overtime, and half-day status
+- Working-hour and late-arrival calculations
 - Monthly employee attendance analytics
 - Department attendance summaries
 - Late-arrival leaderboard
-- MongoDB-backed data storage and indexing
-- Interactive API documentation through Swagger UI
-- Automated API tests using pytest
+- Department attendance trends
+- MongoDB indexes for data integrity and query performance
+- Request validation and HTTP error handling
+- Interactive API documentation
+- Automated tests using pytest
 
 ## Technology Stack
 
@@ -22,7 +32,7 @@ A REST API for employee management, attendance tracking, manual attendance corre
 |---|---|
 | Python 3.11+ | Backend language |
 | FastAPI | REST API framework |
-| MongoDB | Database |
+| MongoDB | Persistent database |
 | PyMongo | MongoDB integration |
 | Pydantic | Request validation |
 | Uvicorn | ASGI server |
@@ -33,15 +43,14 @@ A REST API for employee management, attendance tracking, manual attendance corre
 ```text
 HROne-Attendance-API/
 ├── app/
-│   ├── main.py
-│   └── __pycache__/
+│   └── main.py
+├── tests/
+│   └── test_api.py
 ├── static/
 │   ├── index.html
 │   ├── dashboard.css
 │   ├── dashboard.js
 │   └── swagger.css
-├── tests/
-│   └── test_api.py
 ├── .env.example
 ├── .gitignore
 ├── README.md
@@ -50,12 +59,12 @@ HROne-Attendance-API/
 └── requirements.txt
 ```
 
-The `.venv/` directory and actual `.env` file should remain local and must not be committed to GitHub.
+The local `.venv/` directory and actual `.env` file must remain outside version control.
 
 ## Prerequisites
 
 - Python 3.11 or later
-- MongoDB 6.0+ or MongoDB Atlas
+- MongoDB Atlas or a compatible MongoDB instance
 - Git
 
 ## Installation
@@ -67,11 +76,11 @@ git clone https://github.com/muthuram06/HROne-Attendance-API.git
 cd HROne-Attendance-API
 ```
 
-Create and activate a virtual environment on Windows PowerShell:
+Create and activate a virtual environment on Windows Command Prompt:
 
-```powershell
+```bat
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+.venv\Scripts\activate
 ```
 
 Install dependencies:
@@ -82,26 +91,28 @@ python -m pip install -r requirements.txt
 
 ## Environment Configuration
 
-Create a `.env` file in the project root and configure your MongoDB connection string and database name according to the environment variables read by `app/main.py`.
+Create a local `.env` file in the project root. Configure the MongoDB connection string and database name using the environment variable names expected by `app/main.py`.
 
-Example:
+Example placeholders:
 
 ```env
-MONGODB_URI=your_mongodb_connection_string
-DATABASE_NAME=hrone_attendance
+MONGO_URI=your_mongodb_connection_string
+MONGO_DB=attendance_db
 ```
 
-Use the exact environment variable names expected by your application. Never commit your actual `.env` file, MongoDB credentials, or passwords to a public repository.
+Replace these placeholders with your own configuration. Do not commit the real `.env` file, database credentials, or passwords to GitHub.
 
-## Running the Application
+For production, configure the required environment variables in the hosting provider's environment settings.
 
-Start the development server:
+## Running the Application Locally
+
+From the project root, activate the virtual environment and start the server:
 
 ```bash
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-The API will be available at:
+Local URLs:
 
 - API root: http://127.0.0.1:8000/
 - Health check: http://127.0.0.1:8000/health
@@ -109,75 +120,83 @@ The API will be available at:
 - ReDoc: http://127.0.0.1:8000/redoc
 - Dashboard: http://127.0.0.1:8000/dashboard
 
-Keep the terminal running while using these local URLs.
+Keep the terminal running while using the local application.
 
 ## API Endpoints
 
-The implemented endpoint names and required parameters are defined by the running application's OpenAPI documentation at `/docs`.
+The following endpoints are available in the deployed API documentation.
 
-The main API areas include:
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/` | API root |
+| GET | `/health` | Application and database health |
+| POST | `/employees` | Create an employee |
+| GET | `/employees` | List employees |
+| POST | `/attendance/punch-in` | Record punch-in |
+| POST | `/attendance/punch-out` | Record punch-out |
+| GET | `/attendance` | Retrieve attendance records |
+| PATCH | `/attendance/{emp_code}/{date}` | Regularize an attendance record |
+| GET | `/analytics/employees/{emp_code}/monthly` | Employee monthly analytics |
+| GET | `/analytics/departments/summary` | Department attendance summary |
+| GET | `/analytics/leaderboard/late` | Late-arrival leaderboard |
+| GET | `/analytics/departments/{department}/trend` | Department attendance trend |
+| GET | `/admin/explain/{endpoint}` | Explain an endpoint |
 
-| Area | Purpose |
-|---|---|
-| Employees | Create, list, retrieve, update, and delete employee records |
-| Attendance | Punch-in, punch-out, and retrieve attendance records |
-| Corrections | Update attendance records while preserving correction history |
-| Employee analytics | Monthly attendance metrics for an employee |
-| Department analytics | Attendance summaries by department |
-| Late-arrival analytics | Rank employees by late arrivals |
-| API documentation | Explore request schemas and responses through Swagger UI |
-
-Use `/docs` to verify the exact routes, request bodies, query parameters, and response codes implemented in the current version.
+Refer to Swagger UI for exact request schemas, required parameters, response formats, and available status codes.
 
 ## Attendance Business Rules
 
-The API is designed to validate attendance requests and calculate derived attendance information consistently.
+The API implements attendance operations and calculations based on its configured business rules.
 
-- Attendance dates and time calculations use the configured timezone rules.
-- Duplicate attendance actions should be rejected.
-- Punch-out times must be valid relative to punch-in times.
-- Working hours, lateness, overtime, and half-day status are derived from attendance timestamps and applicable shift rules.
-- Manual corrections should include a reason, editor information, and an audit history.
-- Analytics should handle missing attendance data and employees with no attendance records.
+- Attendance dates use the configured timezone logic.
+- Employee existence is checked before attendance operations.
+- Duplicate attendance records are prevented through database constraints.
+- Punch-in and punch-out operations validate attendance state.
+- Working hours, lateness, overtime, and half-day status are calculated from attendance data and shift rules.
+- Manual regularization records correction details in the attendance history.
+- Analytics summarize attendance data for employees and departments.
 
-Refer to `DECISIONS.md` and `REVIEW.md` for the design rationale and review considerations.
+See `DECISIONS.md` for design rationale and `REVIEW.md` for code review considerations.
 
 ## Running Tests
 
-Run the test suite from the project root:
+Run the automated test suite from the repository root:
 
 ```bash
 python -m pytest -q
 ```
 
-Tests should cover successful API requests, invalid inputs, duplicate attendance, punch-out validation, correction history, and analytics edge cases.
+The tests cover API behavior and attendance-related validation and business rules.
 
 ## Deployment
 
-The application can be deployed to a Python-compatible hosting provider such as Render.
+The application is deployed on Render.
 
-Configure the required MongoDB environment variables in the hosting provider's environment settings. Do not upload local secrets.
+- **Service:** https://hrone-attendance-api-5evn.onrender.com
+- **API documentation:** https://hrone-attendance-api-5evn.onrender.com/docs
+- **Health endpoint:** https://hrone-attendance-api-5evn.onrender.com/health
 
-Example production start command:
+Production start command:
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Confirm that the selected hosting platform supports the configured start command and port handling.
+Configure the MongoDB environment variables in Render. Never include secrets in source code or public documentation.
 
 ## Design Documentation
 
-- [`REVIEW.md`](REVIEW.md) — code review findings, validation, data integrity, audit history, and testing.
-- [`DECISIONS.md`](DECISIONS.md) — framework, database, timezone, analytics, and security decisions.
+- **[REVIEW.md](REVIEW.md):** Code review findings covering validation, data integrity, attendance rules, audit history, analytics, error handling, and testing.
+- **[DECISIONS.md](DECISIONS.md):** Design decisions covering the framework, database, timezone, attendance operations, analytics, security, and testing.
 
 ## Security
 
 - Keep database credentials in environment variables.
 - Exclude `.env` and `.venv/` from version control.
-- Validate all externally supplied input.
-- Use appropriate error responses without exposing secrets or internal database details.
+- Validate externally supplied data.
+- Use suitable HTTP status codes for validation errors, conflicts, and missing resources.
+- Avoid exposing credentials or internal exception details in API responses.
 
 ## License
 
-This project was developed as an employee attendance API assignment. Add a license if you intend to distribute it under specific reuse terms.
+This project was developed as an employee attendance API assignment.
