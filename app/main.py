@@ -436,6 +436,7 @@ def serialize_attendance(doc: dict) -> dict:
 # MongoDB connection and indexes
 # ---------------------------------------------------------------------
 
+
 def get_database():
     global _client, _db, _indexes_ready
 
@@ -465,6 +466,19 @@ def get_database():
         _db = _client[MONGO_DB]
 
         if not _indexes_ready:
+            # Remove only obsolete unique indexes on employee_id.
+            # The current API uses emp_code instead.
+            for index in list(_db.employees.list_indexes()):
+                index_keys = index.get("key", {})
+
+                if (
+                    index.get("unique", False)
+                    and "employee_id" in index_keys
+                    and "emp_code" not in index_keys
+                ):
+                    _db.employees.drop_index(index["name"])
+
+            # Employee indexes
             _db.employees.create_index(
                 [("emp_code", ASCENDING)],
                 unique=True,
@@ -478,6 +492,8 @@ def get_database():
                 [("joined_on", ASCENDING)],
                 name="employee_joined_on",
             )
+
+            # Attendance indexes
             _db.attendance_logs.create_index(
                 [("emp_code", ASCENDING), ("date", DESCENDING)],
                 unique=True,
@@ -513,6 +529,7 @@ def get_database():
             status_code=503,
             detail="MongoDB is unavailable",
         ) from exc
+
 
 
 def employee_or_404(db, emp_code: str) -> dict:
@@ -576,6 +593,7 @@ def health():
 # Employee endpoints
 # ---------------------------------------------------------------------
 
+
 @app.post("/employees", status_code=201)
 def create_employee(body: EmployeeCreate):
     db = get_database()
@@ -587,12 +605,48 @@ def create_employee(body: EmployeeCreate):
     doc["department"] = doc["department"].strip()
     doc["created_at"] = now_utc()
 
+    # Check the current schema before inserting.
+    if db.employees.find_one(
+        {"emp_code": doc["emp_code"]},
+        {"_id": 1},
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Employee code already exists: {doc['emp_code']}",
+        )
+
     try:
         db.employees.insert_one(doc)
+
     except DuplicateKeyError as exc:
+        details = exc.details or {}
+        key_pattern = details.get("keyPattern") or {}
+        key_value = details.get("keyValue") or {}
+
+        if "emp_code" in key_pattern:
+            detail = (
+                "Employee code already exists: "
+                f"{key_value.get('emp_code', doc['emp_code'])}"
+            )
+        elif "email" in key_pattern:
+            detail = (
+                "Employee email already exists: "
+                f"{key_value.get('email', doc['email'])}"
+            )
+        elif "employee_id" in key_pattern:
+            detail = (
+                "Legacy employee_id unique index is still active. "
+                "Restart the application and check the employee indexes."
+            )
+        else:
+            detail = (
+                "Duplicate database key: "
+                f"{key_pattern or key_value or 'unknown unique index'}"
+            )
+
         raise HTTPException(
-            409,
-            "Employee code already exists",
+            status_code=409,
+            detail=detail,
         ) from exc
 
     return serialize_employee(doc)
